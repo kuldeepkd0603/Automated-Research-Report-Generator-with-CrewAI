@@ -1,13 +1,13 @@
 import pandas as pd
 import numpy as np
 from typing import Dict, Any, List, Optional
-from crewai_tools.tools import BaseTool
+from crewai.tools import BaseTool  # Updated import
 from pydantic import BaseModel, Field
 
 
 class PandasToolInput(BaseModel):
-    dataframe: Any = Field(..., description="Pandas DataFrame to process")
     operations: List[str] = Field(..., description="List of cleaning operations to perform")
+    # Note: dataframe will be passed as a string representation for the LLM
 
 
 class PandasTool(BaseTool):
@@ -15,7 +15,15 @@ class PandasTool(BaseTool):
     description: str = "Clean and transform pandas DataFrames with various operations"
     args_schema: type[BaseModel] = PandasToolInput
     
-    def _run(self, dataframe: pd.DataFrame, operations: List[str]) -> Dict[str, Any]:
+    def __init__(self):
+        super().__init__()
+        self.current_dataframe = None
+    
+    def set_dataframe(self, df: pd.DataFrame):
+        """Set the current dataframe to work with"""
+        self.current_dataframe = df
+    
+    def _run(self, operations: List[str]) -> Dict[str, Any]:
         """
         Perform data cleaning operations on DataFrame
         
@@ -27,7 +35,15 @@ class PandasTool(BaseTool):
         - remove_empty_rows_cols
         """
         try:
-            df = dataframe.copy()
+            if self.current_dataframe is None:
+                return {
+                    "success": False,
+                    "data": None,
+                    "applied_operations": [],
+                    "error": "No dataframe set. Use set_dataframe() first."
+                }
+            
+            df = self.current_dataframe.copy()
             applied_operations = []
             
             for operation in operations:
@@ -65,7 +81,7 @@ class PandasTool(BaseTool):
         except Exception as e:
             return {
                 "success": False,
-                "data": dataframe,
+                "data": self.current_dataframe,
                 "applied_operations": [],
                 "error": f"Cleaning failed: {str(e)}"
             }
@@ -157,3 +173,4 @@ class PandasTool(BaseTool):
         # Remove empty columns
         df = df.dropna(axis=1, how='all')
         return df
+

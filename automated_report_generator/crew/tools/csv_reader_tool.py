@@ -2,9 +2,7 @@ import pandas as pd
 import chardet
 import os
 from typing import Optional, Tuple, Dict, Any
-# from crewai_tools import BaseTool
-# from crewai_tools import Tool
-from crewai_tools.tools import BaseTool
+from crewai.tools import BaseTool  # Updated import
 from pydantic import BaseModel, Field
 
 
@@ -125,4 +123,3 @@ class CSVReaderTool(BaseTool):
             
         except Exception:
             return ','
-

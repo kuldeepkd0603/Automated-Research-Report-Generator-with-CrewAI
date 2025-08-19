@@ -1,11 +1,18 @@
-from crewai import Agent
+from crewai import Agent, LLM
 from tools.csv_reader_tool import CSVReaderTool
 from tools.pandas_tool import PandasTool
 from tools.validation_tool import ValidationTool
+from config.settings import Settings
 
 
 def create_ingestion_agent() -> Agent:
     """Create the Ingestion Agent with required tools"""
+    
+    # Configure LLM to use Ollama
+    llm = LLM(
+        model=f"ollama/{Settings.MODEL_NAME}",
+        base_url=Settings.OLLAMA_BASE_URL
+    )
     
     return Agent(
         role="Data Gateway & Validator",
@@ -22,6 +29,7 @@ def create_ingestion_agent() -> Agent:
             ValidationTool()
         ],
         
+        llm=llm,
         verbose=True,
         allow_delegation=False,
         max_iter=3

@@ -1,12 +1,11 @@
 import pandas as pd
 from typing import Dict, Any, List, Optional
-from crewai_tools.tools import BaseTool
+from crewai.tools import BaseTool  # Updated import
 from pydantic import BaseModel, Field
 from config.settings import Settings
 
 
 class ValidationToolInput(BaseModel):
-    dataframe: Any = Field(..., description="Pandas DataFrame to validate")
     required_columns: Optional[List[str]] = Field(None, description="List of required column names")
     validation_rules: Optional[Dict[str, Any]] = Field(None, description="Custom validation rules")
 
@@ -16,12 +15,30 @@ class ValidationTool(BaseTool):
     description: str = "Validate DataFrame schema and data quality"
     args_schema: type[BaseModel] = ValidationToolInput
     
-    def _run(self, dataframe: pd.DataFrame, required_columns: Optional[List[str]] = None, 
+    def __init__(self):
+        super().__init__()
+        self.current_dataframe = None
+    
+    def set_dataframe(self, df: pd.DataFrame):
+        """Set the current dataframe to work with"""
+        self.current_dataframe = df
+    
+    def _run(self, required_columns: Optional[List[str]] = None, 
              validation_rules: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         """
         Validate DataFrame and return detailed validation report
         """
         try:
+            if self.current_dataframe is None:
+                return {
+                    "is_valid": False,
+                    "errors": ["No dataframe set. Use set_dataframe() first."],
+                    "warnings": [],
+                    "suggestions": [],
+                    "data_quality_score": 0.0,
+                    "summary": {}
+                }
+            
             validation_report = {
                 "is_valid": True,
                 "errors": [],
@@ -32,17 +49,17 @@ class ValidationTool(BaseTool):
             }
             
             # Basic validations
-            self._validate_basic_structure(dataframe, validation_report)
-            self._validate_required_columns(dataframe, required_columns or [], validation_report)
-            self._validate_data_quality(dataframe, validation_report)
-            self._validate_data_types(dataframe, validation_report)
+            self._validate_basic_structure(self.current_dataframe, validation_report)
+            self._validate_required_columns(self.current_dataframe, required_columns or [], validation_report)
+            self._validate_data_quality(self.current_dataframe, validation_report)
+            self._validate_data_types(self.current_dataframe, validation_report)
             
             # Custom validations if provided
             if validation_rules:
-                self._apply_custom_validations(dataframe, validation_rules, validation_report)
+                self._apply_custom_validations(self.current_dataframe, validation_rules, validation_report)
             
             # Calculate overall data quality score
-            validation_report["data_quality_score"] = self._calculate_quality_score(dataframe, validation_report)
+            validation_report["data_quality_score"] = self._calculate_quality_score(self.current_dataframe, validation_report)
             
             # Set overall validity
             validation_report["is_valid"] = len(validation_report["errors"]) == 0
